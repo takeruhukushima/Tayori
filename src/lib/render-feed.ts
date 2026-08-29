@@ -1,10 +1,5 @@
-// ページ側のデータ取得・描画。ブラウザから直接 public appview を叩く
-// （自分の Worker の /xrpc は叩かない — レート制限枠を分離するため）。
-// 判定は src/match.ts をそのまま使う（Worker とロジックを共有）。
-import { matchPost } from "../match";
+// ページ側のデータ取得・描画。同一オリジンのWorker APIを叩く。
 import { bskyPostUrl } from "./aturi";
-import { feeds } from "../../feeds/index";
-import { APPVIEW } from "./appview";
 
 interface Post {
   uri: string;
@@ -14,71 +9,13 @@ interface Post {
   createdAt: string;
 }
 
-// searchPosts / getAuthorFeed の投稿ビューを共通形に正規化する。
-function normalize(view: any): Post | null {
-  if (!view?.uri || !view.author?.did || !view.record) return null;
-  return {
-    uri: view.uri,
-    text: view.record.text ?? "",
-    did: view.author.did,
-    handle: view.author.handle ?? view.author.did,
-    createdAt: view.record.createdAt ?? "",
-  };
-}
-
-async function searchPosts(query: string): Promise<Post[]> {
-  const url = `${APPVIEW}/xrpc/app.bsky.feed.searchPosts?q=${encodeURIComponent(
-    query,
-  )}&sort=latest&limit=100`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`searchPosts ${res.status}`);
-  const data = (await res.json()) as any;
-  return (data.posts ?? []).map(normalize).filter(Boolean) as Post[];
-}
-
-async function getAuthorFeed(did: string): Promise<Post[]> {
-  const url = `${APPVIEW}/xrpc/app.bsky.feed.getAuthorFeed?actor=${encodeURIComponent(
-    did,
-  )}&limit=30&filter=posts_no_replies`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`getAuthorFeed ${res.status}`);
-  const data = (await res.json()) as any;
-  // reason があるアイテム＝リポストは除外
-  return (data.feed ?? [])
-    .filter((item: any) => !item.reason)
-    .map((item: any) => normalize(item.post))
-    .filter(Boolean) as Post[];
-}
-
-// 都城関連の投稿を集めてマージ・判定・整列する。
-async function collect(rkey: string): Promise<Post[]> {
-  const cfg = feeds[rkey];
-  const tasks: Promise<Post[]>[] = [
-    ...cfg.queries.map(searchPosts),
-    ...cfg.sources.map(getAuthorFeed),
-  ];
-
-  // 上流1本の失敗で全体を落とさない
-  const results = await Promise.allSettled(tasks);
-  const merged: Post[] = [];
-  for (const r of results) {
-    if (r.status === "fulfilled") merged.push(...r.value);
-    else console.warn("upstream failed:", r.reason);
-  }
-
-  // URIで重複排除
-  const byUri = new Map<string, Post>();
-  for (const p of merged) if (!byUri.has(p.uri)) byUri.set(p.uri, p);
-
-  const cutoff = Date.now() + 60_000; // 1分以上未来の投稿は除外
-  return [...byUri.values()]
-    .filter((p) => matchPost(p.text, p.did, cfg))
-    .filter((p) => {
-      const t = Date.parse(p.createdAt);
-      return !Number.isNaN(t) && t <= cutoff;
-    })
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-    .slice(0, 50);
+async function fetchPosts(rkey: string): Promise<Post[]> {
+  const res = await fetch(`/api/feeds/${encodeURIComponent(rkey)}`, {
+    headers: { accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`feed API ${res.status}`);
+  const data = (await res.json()) as { posts?: Post[] };
+  return data.posts ?? [];
 }
 
 function relativeTime(iso: string): string {
@@ -140,7 +77,7 @@ function renderPosts(container: HTMLElement, posts: Post[]) {
 export async function renderFeed(rkey: string, container: HTMLElement) {
   container.replaceChildren(el("p", { class: "state" }, "読み込み中…"));
   try {
-    const posts = await collect(rkey);
+    const posts = await fetchPosts(rkey);
     renderPosts(container, posts);
   } catch (err) {
     console.error(err);

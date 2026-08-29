@@ -1,10 +1,10 @@
-// Worker 側の上流 appview 取得。すべて未認証の public appview を叩く。
-// ページ側（src/lib/render-feed.ts）とは別経路 — レート制限枠を分離するため。
+// Worker 側の上流 appview 取得。接続先は APPVIEW 環境変数で指定する。
 
 export interface UpstreamPost {
   uri: string;
   text: string;
   did: string;
+  handle: string;
   createdAt: string;
 }
 
@@ -15,6 +15,7 @@ function normalize(view: any): UpstreamPost | null {
     uri: view.uri,
     text: view.record.text ?? "",
     did: view.author.did,
+    handle: view.author.handle ?? view.author.did,
     createdAt: view.record.createdAt ?? "",
   };
 }

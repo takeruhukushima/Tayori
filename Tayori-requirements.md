@@ -81,7 +81,7 @@ export const miyakonojo: FeedConfig = {
 
 ## 2. 判定ロジック
 
-`src/match.ts` に純関数として置く。Worker側とページ側の両方がここをimportする（コピーしない）。
+`src/match.ts` に純関数として置く。WorkerがBlueskyフィード用とWeb表示用の両方に適用する。
 
 1. 著者DIDが `sources` に含まれる → **本文に関係なく通す**。これがキーワード検索との差分であり、この機能の存在理由
 2. 本文が `strongTerms` のいずれも含まない → 除外
@@ -106,7 +106,7 @@ export const miyakonojo: FeedConfig = {
 
 ## 3. フィードAPI
 
-上流はすべて `https://public.api.bsky.app/xrpc/`（未認証）。
+上流は `APPVIEW` 環境変数で指定する（未認証）。
 
 ### `GET /.well-known/did.json`
 
@@ -166,9 +166,9 @@ export const miyakonojo: FeedConfig = {
 
 ## 4. Webページ
 
-同じWorkerから配信されるが、**データ取得はブラウザが直接 `public.api.bsky.app` に対して行う。**自分の `/xrpc/...` は叩かない。
+同じWorkerから配信し、ブラウザは同一オリジンの `GET /api/feeds/{rkey}` から表示用投稿を取得する。
 
-これは意図的な分離。ページのアクセスが増えてもWorkerのレート制限枠を消費せず、フィードが巻き添えで壊れない。レート制限に当たったとき原因の切り分けもしやすい。
+WorkerはBlueskyフィードとWeb表示でマージ後の90秒キャッシュを共有する。ブラウザを上流のWAF/CORSへ依存させず、Webアクセスごとの上流リクエスト増加も抑える。
 
 ### ルーティング
 
@@ -181,7 +181,7 @@ export const miyakonojo: FeedConfig = {
 
 - 本文、ハンドル、相対時刻、Blueskyの該当投稿へのリンク
 - 50件程度。「もっと見る」は不要
-- 判定は `src/match.ts` をそのまま使う
+- 判定済みの投稿をWorker APIから受け取る
 - レスポンシブ。スマホで読めること
 - Blueskyアカウント不要で誰でも見られること
 
