@@ -1,0 +1,29 @@
+---
+import Base from "../layouts/Base.astro";
+import { feeds } from "../../feeds/index";
+
+// feeds/index.ts の全エントリぶんのページを生成する。
+export function getStaticPaths() {
+  return Object.values(feeds).map((feed) => ({
+    params: { rkey: feed.rkey },
+    props: { feed },
+  }));
+}
+
+const { feed } = Astro.props;
+---
+
+<Base title={feed.displayName} description={feed.description}>
+  <h1>{feed.displayName}</h1>
+  <p class="lead">{feed.description}</p>
+  <div id="feed" data-rkey={feed.rkey}>
+    <p class="state">読み込み中…</p>
+  </div>
+
+  <script>
+    import { renderFeed } from "../lib/render-feed";
+    const container = document.getElementById("feed");
+    const rkey = container?.dataset.rkey;
+    if (container && rkey) renderFeed(rkey, container);
+  </script>
+</Base>

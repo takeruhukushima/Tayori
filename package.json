@@ -1,0 +1,31 @@
+{
+  "name": "tayori",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Blueskyのカスタムフィードを複数まとめてホストする単一Cloudflare Worker。最初のフィードは都城。",
+  "packageManager": "pnpm@10.29.3",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "wrangler dev",
+    "deploy": "astro build && wrangler deploy",
+    "check": "astro check && tsc --noEmit -p tsconfig.worker.json",
+    "test": "vitest run",
+    "publish-feeds": "tsx scripts/publish.ts"
+  },
+  "dependencies": {
+    "@atproto/api": "^0.15.0",
+    "astro": "^5.13.0",
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@cloudflare/workers-types": "^4.20250801.0",
+    "@types/node": "^26.4.0",
+    "tsx": "^4.19.0",
+    "typescript": "^6.0.3",
+    "vitest": "^2.1.0",
+    "wrangler": "^4.28.0"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  // ページ/ブラウザ/共有コード用（DOM + Node）。Worker コードは
+  // グローバル型（Response, caches 等）が衝突するため tsconfig.worker.json で別に見る。
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "types": ["astro/client", "node"],
+    "verbatimModuleSyntax": true
+  },
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "src/worker.ts",
+    "src/feed-api.ts",
+    "src/bsky.ts"
+  ]
+}

@@ -1,0 +1,26 @@
+---
+import Base from "../layouts/Base.astro";
+import { feeds } from "../../feeds/index";
+
+const entries = Object.values(feeds);
+
+// エントリが1つのときは、そのフィードへ転送する。
+if (entries.length === 1) {
+  return Astro.redirect(`/${entries[0].rkey}/`);
+}
+---
+
+<Base title="Tayori" description="Blueskyのカスタムフィード">
+  <h1>Tayori</h1>
+  <p class="lead">Bluesky上の投稿を集めたフィードの一覧です。</p>
+  <ul class="feed-links">
+    {
+      entries.map((feed) => (
+        <li>
+          <a href={`/${feed.rkey}/`}>{feed.displayName}</a>
+          <p class="lead">{feed.description}</p>
+        </li>
+      ))
+    }
+  </ul>
+</Base>

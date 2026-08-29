@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tayori",
+  "main": "src/worker.ts",
+  "compatibility_date": "2025-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Astro のビルド成果物を Static Assets として配信する。
+  // dist/ に存在するパス（/ , /{rkey}/）は ASSETS が返し、
+  // 存在しないパス（/.well-known/*, /xrpc/*）は Worker(Hono) が処理する。
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+
+  "vars": {
+    // カスタムドメイン移行時はここだけ変える。did:web はこの値で解決する。
+    "HOSTNAME": "tayori.takeruf.workers.dev",
+    // フィードレコードを置くアカウントの DID（publish 後に設定）。
+    "PUBLISHER_DID": "did:plc:nmhfq335cddnwt4ovrq4gzsm",
+    // 上流 appview のベースURL。Worker egress（データセンターIP）は
+    // public.api.bsky.app が WAF で 403 になるため api.bsky.app を使う。
+    "APPVIEW": "https://api.bsky.app"
+  }
+}

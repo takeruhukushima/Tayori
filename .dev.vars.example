@@ -1,0 +1,7 @@
+# publish スクリプト用の認証情報（scripts/publish.ts が読む）。
+# コピーして .dev.vars を作り、値を埋める。.dev.vars はコミットしない。
+BSKY_HANDLE=you.bsky.social
+BSKY_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
+
+# publish 先のホスト名（did:web:{HOSTNAME}）。wrangler.jsonc の HOSTNAME と揃える。
+HOSTNAME=tayori.takeruf.workers.dev

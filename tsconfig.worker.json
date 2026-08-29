@@ -1,0 +1,18 @@
+{
+  // Worker 実行時コード用。Cloudflare のグローバル型を使い DOM は含めない。
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types"],
+    "verbatimModuleSyntax": true,
+    "noEmit": true
+  },
+  "include": [
+    "src/worker.ts",
+    "src/feed-api.ts",
+    "src/bsky.ts",
+    "src/match.ts",
+    "src/types.ts",
+    "feeds/**/*.ts"
+  ]
+}
