@@ -1,6 +1,6 @@
 import type { FeedConfig } from "./types";
 
-// 判定ロジック。Worker 側とページ側の両方がここを import する（コピーしない）。
+// Workerで上流投稿をフィード対象に絞り込む判定ロジック。
 //
 // ルール（順に評価する）:
 //   1. 著者DIDが sources に含まれる → 本文に関係なく通す。

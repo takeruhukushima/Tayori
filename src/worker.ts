@@ -2,10 +2,11 @@
 //   /.well-known/did.json                       → did:web の DIDドキュメント
 //   /xrpc/app.bsky.feed.describeFeedGenerator    → フィード一覧
 //   /xrpc/app.bsky.feed.getFeedSkeleton          → フィードのスケルトン
+//   /api/feeds/:rkey                             → Web表示用の投稿一覧
 //   それ以外                                      → Static Assets(dist/) にフォールバック
 import { Hono } from "hono";
 import { feeds } from "../feeds/index";
-import { getFeedSkeleton } from "./feed-api";
+import { getFeedPosts, getFeedSkeleton } from "./feed-api";
 
 interface Env {
   ASSETS: Fetcher;
@@ -67,6 +68,17 @@ app.get("/xrpc/app.bsky.feed.getFeedSkeleton", async (c) => {
   const limit = Number.isNaN(raw) ? 30 : Math.min(Math.max(raw, 1), 100);
 
   const body = await getFeedSkeleton(c.env.APPVIEW, cfg, limit);
+  return c.json(body);
+});
+
+// ブラウザが上流のWAF/CORSに依存しないよう、同一オリジンから表示用投稿を返す。
+app.get("/api/feeds/:rkey", async (c) => {
+  const cfg = feeds[c.req.param("rkey")];
+  if (!cfg) {
+    return c.json({ error: "UnknownFeed", message: "unknown feed" }, 404);
+  }
+
+  const body = await getFeedPosts(c.env.APPVIEW, cfg, 50);
   return c.json(body);
 });
 

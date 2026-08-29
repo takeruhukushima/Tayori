@@ -1,4 +1,4 @@
-// getFeedSkeleton の中核: fan-out → dedupe → 判定 → 整列 → キャッシュ。
+// フィード取得の中核: fan-out → dedupe → 判定 → 整列 → キャッシュ。
 import type { FeedConfig } from "./types";
 import { matchPost } from "./match";
 import { getAuthorFeed, searchPosts, type UpstreamPost } from "./bsky";
@@ -9,14 +9,14 @@ const MAX_MERGED = 100; // キャッシュに載せる上限（limit の最大�
 // マージ後の結果をrkey単位で90秒キャッシュする。
 // キーにrkeyを含める — フィード間で結果が混ざると事故になる。
 function cacheKey(rkey: string): string {
-  return `https://tayori.cache/feed/${encodeURIComponent(rkey)}`;
+  return `https://tayori.cache/feed-v2/${encodeURIComponent(rkey)}`;
 }
 
-// 上流を叩いてマージ・判定・整列した URI 列（最大 MAX_MERGED 件）を作る。
+// 上流を叩いてマージ・判定・整列した投稿（最大 MAX_MERGED 件）を作る。
 async function buildMerged(
   appview: string,
   cfg: FeedConfig,
-): Promise<string[]> {
+): Promise<UpstreamPost[]> {
   const tasks: Promise<UpstreamPost[]>[] = [
     ...cfg.queries.map((q) => searchPosts(appview, q)),
     ...cfg.sources.map((did) => getAuthorFeed(appview, did)),
@@ -42,33 +42,49 @@ async function buildMerged(
       return !Number.isNaN(t) && t <= cutoff;
     })
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-    .slice(0, MAX_MERGED)
-    .map((p) => p.uri);
+    .slice(0, MAX_MERGED);
 }
 
-// getFeedSkeleton のレスポンス body を返す。キャッシュヒット時は上流に出ない。
+// キャッシュヒット時は上流に出ず、Bluesky用とWeb表示用で結果を共有する。
+async function getMergedPosts(
+  appview: string,
+  cfg: FeedConfig,
+): Promise<UpstreamPost[]> {
+  const cache = caches.default;
+  const key = cacheKey(cfg.rkey);
+
+  const hit = await cache.match(key);
+  if (hit) {
+    return (await hit.json()) as UpstreamPost[];
+  }
+
+  const posts = await buildMerged(appview, cfg);
+  const res = new Response(JSON.stringify(posts), {
+    headers: {
+      "content-type": "application/json",
+      "cache-control": `max-age=${CACHE_TTL_SECONDS}`,
+    },
+  });
+  await cache.put(key, res);
+  return posts;
+}
+
 export async function getFeedSkeleton(
   appview: string,
   cfg: FeedConfig,
   limit: number,
 ): Promise<{ feed: { post: string }[] }> {
-  const cache = caches.default;
-  const key = cacheKey(cfg.rkey);
+  const posts = await getMergedPosts(appview, cfg);
+  return {
+    feed: posts.slice(0, limit).map(({ uri: post }) => ({ post })),
+  };
+}
 
-  let uris: string[] | null = null;
-  const hit = await cache.match(key);
-  if (hit) {
-    uris = (await hit.json()) as string[];
-  } else {
-    uris = await buildMerged(appview, cfg);
-    const res = new Response(JSON.stringify(uris), {
-      headers: {
-        "content-type": "application/json",
-        "cache-control": `max-age=${CACHE_TTL_SECONDS}`,
-      },
-    });
-    await cache.put(key, res);
-  }
-
-  return { feed: uris.slice(0, limit).map((post) => ({ post })) };
+export async function getFeedPosts(
+  appview: string,
+  cfg: FeedConfig,
+  limit: number,
+): Promise<{ posts: UpstreamPost[] }> {
+  const posts = await getMergedPosts(appview, cfg);
+  return { posts: posts.slice(0, limit) };
 }

@@ -9,11 +9,12 @@ Blueskyのカスタムフィードを複数まとめてホストする単一 Clo
 | パス | 返すもの | 担当 |
 |---|---|---|
 | `/`, `/{rkey}/` | Astroでビルドした静的ページ | Static Assets (`dist/`) |
+| `/api/feeds/{rkey}` | Web表示用の投稿一覧 | Worker (Hono) |
 | `/xrpc/app.bsky.feed.getFeedSkeleton` | フィードのスケルトン | Worker (Hono) |
 | `/xrpc/app.bsky.feed.describeFeedGenerator` | フィード一覧 | Worker (Hono) |
 | `/.well-known/did.json` | `did:web` のDIDドキュメント | Worker (Hono) |
 
-ページのデータ取得は**ブラウザが直接** `public.api.bsky.app` を叩く（自分の `/xrpc` は叩かない）。ページのアクセス増で Worker のレート制限枠を消費しないための意図的な分離。
+ページは同一オリジンの `/api/feeds/{rkey}` を叩く。WorkerはBlueskyフィードとWeb表示で同じ90秒キャッシュを共有するため、Webアクセスごとに上流リクエストは増えない。
 
 ## 開発
 
@@ -33,7 +34,7 @@ pnpm check      # astro check + Worker側 tsc
 2. `feeds/index.ts` の `feeds` に登録
 3. `pnpm publish-feeds <rkey>` で公開
 
-判定ロジックは `src/match.ts` を Worker とページの両方が import する（コピーしない）。
+判定ロジックは `src/match.ts` に集約し、WorkerがBlueskyフィード用とWeb表示用の両方に適用する。
 
 ## 設定
 
@@ -41,7 +42,7 @@ pnpm check      # astro check + Worker側 tsc
 
 - `HOSTNAME` — 当面 `tayori.{account}.workers.dev`。カスタムドメイン移行時はここだけ変える（`did:web` はこの値で解決）
 - `PUBLISHER_DID` — フィードレコードを置くアカウントの DID
-- `APPVIEW` — 上流 appview のベースURL（既定 `https://public.api.bsky.app`）
+- `APPVIEW` — Workerが使う上流 appview のベースURL
 
 ## 公開
 
